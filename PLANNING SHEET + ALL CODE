@@ -1,0 +1,239 @@
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Basic Plan: Taking a toilet stop for excretion.
+Description: Will need to take regular toilet breaks to simulate real life things that are needed.
+Details:
+ - Y menu use of item.
+ - Use item toilet paper.
+ - Plays animation of sitting on chair.
+ - Future Update* Plays sound of (farting/taking shit/groaning).
+ - Progress Bar shows up then reads "taking a dump x%"
+ - When finished, finishes animation and stands back up.
+ - Future Update* turd on ground.
+ - Sets Toilet icon back to 100/restores 50 points. e.g. if 20 points to 70.
+ - If toilet % hits 0 then will do 50 health damage, possibly killing you, and make you play animation and shit anyway causing toilet % to rise.
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Possible Files to create/edit:
+ - fn_toiletPaperUse - Create*
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Basic coding implementations:
+File: core/configuration.sqf
+	- *life_inv_items* "life_inv_toiletp",
+	- *sell_array* ["toiletp",200],
+	- *buy_array* ["toiletp",400],
+	- //life variables
+	life_thirst = 100;
+	life_hunger = 100;
+	life_shit = 100;
+
+File: *icons/toilet.paa* toilet.paa
+
+File: Functions.h
+	- *class items array*
+
+File: core/config/itemWeight.sqf
+	- *case "toiletp": {2};*
+
+File: core/config/fn_virt_shops.sqf
+	- *case "market": {["AltisMarket",["toiletp","...]]};
+
+File: core/config/varToStr.sqf
+	- //virtual inventory items *case "life_inv_toiletp": {(localize "STR_Item_ToiletPaper")};*
+
+File: core/config/fn_varHandle.sqf
+	- //case 0 *case "toiletp": {"life_inv_toiletp"};* //case 1 *case "life_inv_toiletp": {"toiletp"};*
+
+File: core/functions/fn_hudUpdate.sqf
+	- //Update Shit
+	  _shit ctrlSetPosition [safeZoneX+safeZoneW-0.090,safeZoneY+safeZoneH-0.410];
+	  _shit ctrlSetText format["%1", life_shit];                     
+	  _shit ctrlCommit 0;
+
+File: dialog/player_sys.sqf
+	- *#define shit_text 2011*
+
+File: dialog/ui.hpp
+	- //controls background
+				class toiletHIcon : life_RscPicture
+			{
+				
+				idc = -1;
+				text = "icons\toilet.paa";
+				x = safeZoneX+safeZoneW-0.11; y = safeZoneY+safeZoneH-0.40;
+				w = 0.02; h = 0.03;
+			};
+	- //class controls 
+				class shittextßs
+			{
+				type=0;
+				idc=23520;
+				style=0;
+				x=-1;
+				y=-1;
+				w=0.3;
+				h=0.05;
+				sizeEx=0.03;
+				size=1;
+				font="PuristaSemibold";
+				colorBackground[]={0,0,0,0};
+				colorText[] = { 1 , 1 , 1 , 1 };
+				shadow=true;
+				text="";
+			};
+			
+File: core/pmenu/fn_useItem.sqf
+	- 	case (_item in ["toiletp"]):
+		{
+			[_item] call life_fnc_toiletPaperUse;
+		};
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+/*
+	Title: core/config/fn_toiletPaperUse.sqf
+	Author: Ben ("benkahoots") Tegoni
+	Description: Manages system for excreating and basic values of item use.
+*/
+
+close dialog 0;
+private ["_player","_animate","_toilet","_val","_sum"];
+_toilet = [_this,0,"",[""]] call BIS_fnc_param;
+if(_toilet == "") exitwith {};
+
+if([false,_toilet,1] call life_fnc_handleInv) then {
+	switch (_toilet) do
+	{
+		case "toiletp": {_val = 50};
+	};
+		
+		_sum = life_shit + _val;
+		if(_sum > 100) then {_sum = 100; player setFatigue 1; hint "You have excreted too much, you are feeling sick!";};
+		life_shit = _sum;
+};
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+/* core/init_survival.sqf */
+
+[] spawn  {
+	private["_fnc_food","_fnc_water","_fnc_shit"];
+	_fnc_food = 
+	{
+		if(life_hunger < 2) then {player setDamage 1; hint localize "STR_NOTF_EatMSG_Death";}
+		else
+		{
+		life_hunger = life_hunger - 10;
+		[] call life_fnc_hudUpdate;
+		if(life_hunger < 2) then {player setDamage 1; hint localize "STR_NOTF_EatMSG_Death";};
+		switch(life_hunger) do {
+			case 30: {hint localize "STR_NOTF_EatMSG_1";};
+			case 20: {hint localize "STR_NOTF_EatMSG_2";};
+			case 10: {hint localize "STR_NOTF_EatMSG_3";player setFatigue 1;};
+			};
+		};
+	};
+	
+	_fnc_water = 
+	{
+		if(life_thirst < 2) then {player setDamage 1; hint localize "STR_NOTF_DrinkMSG_Death";}
+		else
+		{
+			life_thirst = life_thirst - 10;
+			[] call life_fnc_hudUpdate;
+			if(life_thirst < 2) then {player setDamage 1; hint localize "STR_NOTF_DrinkMSG_Death";};
+			switch(life_thirst) do 
+			{
+				case 30: {hint localize "STR_NOTF_DrinkMSG_1";};
+				case 20: {hint localize "STR_NOTF_DrinkMSG_2"; player setFatigue 1;};
+				case 10: {hint localize "STR_NOTF_DrinkMSG_3"; player setFatigue 1;};
+			};
+		};
+	};
+	
+	_fnc_shit =
+	{
+		if(life_shit < 2) then {player setDamage 1; hint localize "STR_NOTF_ShitMSG_Death";}
+		else
+		{
+			life_shit = life_shit - 10;
+			[] call life_fnc_hudUpdate;
+			if(life_shit < 2) then {player setDamage 1; hint localize "STR_NOTF_ShitMSG_Death";};
+			switch(life_shit) do
+			{
+				case 30: {hint localize "STR_NOTF_ShitMSG_1";};
+				case 20: {hint localize "STR_NOTF_ShitMSG_2";};
+				case 10: {hint localize "STR_NOTF_ShitMSG_3";player setFatigue 1;};
+			};
+		};
+	};
+	
+	while{true} do
+	{
+		sleep 600;
+		[] call _fnc_water;
+		sleep 10;
+		[] call _fnc_shit;
+		sleep 250;
+		[] call _fnc_food;
+	};
+};
+
+[] spawn
+{
+	private["_bp","_load","_cfg"];
+	while{true} do
+	{
+		waitUntil {backpack player != ""};
+		_bp = backpack player;
+		_cfg = getNumber(configFile >> "CfgVehicles" >> (backpack player) >> "maximumload");
+		_load = round(_cfg / 8);
+		life_maxWeight = life_maxWeightT + _load;
+		waitUntil {backpack player != _bp};
+		if(backpack player == "") then 
+		{
+			life_maxWeight = life_maxWeightT;
+		};
+	};
+};
+
+[] spawn
+{
+	while {true} do
+	{
+		sleep 1.5;
+		if(life_carryWeight > life_maxWeight && !isForcedWalk player) then {
+			player forceWalk true;
+			player setFatigue 1;
+			hint localize "STR_NOTF_MaxWeight";
+		} else {
+			if(isForcedWalk player) then {
+				player forceWalk false;
+			};
+		};
+	};
+};
+
+[] spawn  
+{
+	private["_walkDis","_myLastPos","_MaxWalk","_runHunger","_runDehydrate"];
+	_walkDis = 0;
+	_myLastPos = (getPos player select 0) + (getPos player select 1);
+	_MaxWalk = 1200;
+	while{true} do 
+	{
+		sleep 0.5;
+		if(!alive player) then {_walkDis = 0;}
+		else
+		{
+			_CurPos = (getPos player select 0) + (getPos player select 1);
+			if((_CurPos != _myLastPos) && (vehicle player == player)) then
+			{
+				_walkDis = _walkDis + 1;
+				if(_walkDis == _MaxWalk) then
+				{
+					_walkDis = 0;
+					life_thirst = life_thirst - 5;
+					life_hunger = life_hunger - 5;
+					[] call life_fnc_hudUpdate;
+				};
+			};
+			_myLastPos = (getPos player select 0) + (getPos player select 1);
+		};
+	};
+};
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
